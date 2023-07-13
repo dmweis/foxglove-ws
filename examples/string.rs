@@ -4,8 +4,8 @@ fn build_string_message(data: &str) -> anyhow::Result<Vec<u8>> {
     let mut msg = vec![0; std::mem::size_of::<u32>() + data.len()];
     // ROS 1 message strings are encoded as 4-bytes length and then the byte data.
     let mut w = std::io::Cursor::new(&mut msg);
-    w.write(&(data.len() as u32).to_le_bytes())?;
-    w.write(data.as_bytes())?;
+    w.write_all(&(data.len() as u32).to_le_bytes())?;
+    w.write_all(data.as_bytes())?;
     Ok(msg)
 }
 
