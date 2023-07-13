@@ -47,6 +47,9 @@
 //!         .await?;
 //! }
 //! ```
+
+mod protocol_types;
+
 use std::{
     collections::HashMap,
     io::{Cursor, Write},
@@ -60,7 +63,6 @@ use std::{
 
 use anyhow::anyhow;
 use futures_util::{stream::SplitSink, SinkExt, StreamExt, TryFutureExt};
-use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::wrappers::ReceiverStream;
 use uuid::Uuid;
@@ -69,53 +71,7 @@ use warp::{
     Filter,
 };
 
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct ServerChannelMessage {
-    id: usize,
-    topic: String,
-    encoding: String,
-    schema_name: String,
-    schema: String,
-    schema_encoding: String,
-}
-
-#[derive(Clone, Debug, Serialize)]
-#[serde(tag = "op", rename_all = "camelCase")]
-enum ServerMessage {
-    #[serde(rename_all = "camelCase")]
-    ServerInfo {
-        name: String,
-        capabilities: Vec<String>,
-        supported_encodings: Vec<String>,
-        metadata: HashMap<String, String>,
-        session_id: String,
-    },
-    #[serde(rename_all = "camelCase")]
-    Advertise { channels: Vec<ServerChannelMessage> },
-}
-
-type ClientChannelId = u32;
-
-#[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ClientSubscriptionMessage {
-    id: ClientChannelId,
-    channel_id: usize,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-#[serde(tag = "op", rename_all = "camelCase")]
-enum ClientMessage {
-    #[serde(rename_all = "camelCase")]
-    Subscribe {
-        subscriptions: Vec<ClientSubscriptionMessage>,
-    },
-    #[serde(rename_all = "camelCase")]
-    Unsubscribe {
-        subscription_ids: Vec<ClientChannelId>,
-    },
-}
+use protocol_types::*;
 
 #[derive(Debug)]
 struct Client {
