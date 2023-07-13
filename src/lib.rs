@@ -63,6 +63,7 @@ use std::{
 };
 
 use anyhow::anyhow;
+use base64::{engine::general_purpose, Engine as _};
 use futures_util::{stream::SplitSink, SinkExt, StreamExt, TryFutureExt};
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::wrappers::ReceiverStream;
@@ -442,13 +443,13 @@ impl FoxgloveWebSocket {
     /// * `scheme_encoding` - Encoding of this channel's schema.
     /// * `is_latching` - Whether messages sent of this channel are sticky. Each newly connecting
     ///    client will be message the last sticky message that was sent on this channel.
-    pub async fn publish(
+    pub async fn create_publisher<S: Into<SchemaDescriptor>>(
         &self,
-        topic: String,
-        encoding: String,
-        schema_name: String,
-        schema: String,
-        schema_encoding: String,
+        topic: &str,
+        encoding: &str,
+        schema_name: &str,
+        schema: S,
+        schema_encoding: Option<&str>,
         is_latching: bool,
     ) -> anyhow::Result<Channel> {
         let channel_id = self
@@ -458,7 +459,7 @@ impl FoxgloveWebSocket {
         log::info!("Publish new channel {}: {}.", topic, channel_id);
         let channel = Channel {
             id: channel_id,
-            topic: topic.clone(),
+            topic: topic.to_owned(),
             is_latching,
             clients: self.clients.clone(),
             channels: self.channels.clone(),
@@ -467,11 +468,11 @@ impl FoxgloveWebSocket {
         };
         let channel_message = ServerChannelMessage {
             id: channel_id,
-            topic,
-            encoding,
-            schema_name,
-            schema,
-            schema_encoding,
+            topic: topic.to_owned(),
+            encoding: encoding.to_owned(),
+            schema_name: schema_name.to_owned(),
+            schema: schema.into().0,
+            schema_encoding: schema_encoding.map(|s| s.to_owned()),
         };
 
         // Advertise the newly created channel.
@@ -496,5 +497,71 @@ impl FoxgloveWebSocket {
         );
 
         Ok(channel)
+    }
+
+    /// Advertise a new publisher.
+    ///
+    /// There are several different message encoding schemes that are supported by Foxglove.
+    /// <https://mcap.dev/spec/registry> contains more information on how to set the arguments to
+    /// this function.
+    ///
+    /// # Arguments
+    ///
+    /// * `topic` - Name of the topic of this new channel.
+    /// * `encoding` - Channel message encoding.
+    /// * `schema_name` - Name of the schema.
+    /// * `schema` - Schema describing the message format.
+    /// * `scheme_encoding` - Encoding of this channel's schema.
+    /// * `is_latching` - Whether messages sent of this channel are sticky. Each newly connecting
+    ///    client will be message the last sticky message that was sent on this channel.
+    #[deprecated(note = "Please use `create_publisher` instead")]
+    pub async fn publish(
+        &self,
+        topic: String,
+        encoding: String,
+        schema_name: String,
+        schema: String,
+        schema_encoding: String,
+        is_latching: bool,
+    ) -> anyhow::Result<Channel> {
+        let channel = self
+            .create_publisher(
+                &topic,
+                &encoding,
+                &schema_name,
+                schema,
+                Some(&schema_encoding),
+                is_latching,
+            )
+            .await?;
+        Ok(channel)
+    }
+}
+
+pub struct SchemaDescriptor(String);
+
+impl From<String> for SchemaDescriptor {
+    fn from(content: String) -> Self {
+        SchemaDescriptor(content)
+    }
+}
+
+impl From<&str> for SchemaDescriptor {
+    fn from(content: &str) -> Self {
+        SchemaDescriptor(content.to_owned())
+    }
+}
+
+impl From<Vec<u8>> for SchemaDescriptor {
+    fn from(data: Vec<u8>) -> Self {
+        let encoded: String = general_purpose::STANDARD_NO_PAD.encode(data);
+        SchemaDescriptor(encoded)
+    }
+}
+
+impl From<&[u8]> for SchemaDescriptor {
+    fn from(data: &[u8]) -> Self {
+        let encoded: String = general_purpose::STANDARD_NO_PAD.encode(data);
+        SchemaDescriptor(encoded)
     }
 }

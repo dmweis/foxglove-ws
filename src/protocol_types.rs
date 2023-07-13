@@ -12,7 +12,8 @@ pub(crate) struct ServerChannelMessage {
     pub(crate) encoding: String,
     pub(crate) schema_name: String,
     pub(crate) schema: String,
-    pub(crate) schema_encoding: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) schema_encoding: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize)]

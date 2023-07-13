@@ -18,22 +18,22 @@ async fn main() -> anyhow::Result<()> {
         async move { server.serve(([127, 0, 0, 1], 8765)).await }
     });
     let channel = server
-        .publish(
-            "/data".to_string(),
-            "ros1".to_string(),
-            "std_msgs/String".to_string(),
-            "string data".to_string(),
-            "ros1msg".to_string(),
+        .create_publisher(
+            "/data",
+            "ros1",
+            "std_msgs/String",
+            "string data",
+            Some("ros1msg"),
             false,
         )
         .await?;
     let channel_latching = server
-        .publish(
-            "/data_latching".to_string(),
-            "ros1".to_string(),
-            "std_msgs/String".to_string(),
-            "string data".to_string(),
-            "ros1msg".to_string(),
+        .create_publisher(
+            "/data_latching",
+            "ros1",
+            "std_msgs/String",
+            "string data",
+            Some("ros1msg"),
             true,
         )
         .await?;
