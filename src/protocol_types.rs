@@ -1,3 +1,6 @@
+//! Types for the foxglove websocket protocol messages.
+//! Spec for the protocol can be found here: <https://github.com/foxglove/ws-protocol/blob/main/docs/spec.md>
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
