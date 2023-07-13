@@ -10,7 +10,7 @@
 //!
 //! This is an example with single ROS1 channel/topic with the `std_msgs/String` message type.
 //!
-//! ```
+//! ```rust
 //! use std::{io::Write, time::SystemTime};
 //!
 //! fn build_string_message(data: &str) -> anyhow::Result<Vec<u8>> {
@@ -45,6 +45,7 @@
 //!             &build_string_message("Hello!")?,
 //!         )
 //!         .await?;
+//!     Ok(())
 //! }
 //! ```
 
