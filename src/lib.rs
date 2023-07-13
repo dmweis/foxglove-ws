@@ -119,7 +119,9 @@ pub struct Channel {
     is_latching: bool,
 
     clients: Arc<ClientState>,
+    channels: Arc<ChannelState>,
     pinned_message: Arc<RwLock<Option<MessageData>>>,
+    unadvertised: bool,
 }
 
 impl Channel {
@@ -153,6 +155,61 @@ impl Channel {
         }
 
         Ok(())
+    }
+
+    /// Unadvertises this channel to the given client.
+    pub async fn unadvertise(mut self) -> anyhow::Result<()> {
+        let message = ServerMessage::Unadvertise {
+            channel_ids: vec![self.id],
+        };
+
+        for client in self.clients.clients.read().await.values() {
+            if let Some(_subscription_id) = client.subscriptions.get(&self.id) {
+                log::debug!(
+                    "Send message on {} to client {} ({}).",
+                    self.topic,
+                    client.id,
+                    client.tx.capacity()
+                );
+                client
+                    .tx
+                    .send(Message::text(serde_json::to_string(&message)?))
+                    .await?;
+            }
+        }
+
+        // remove self from channels
+        self.channels.channels.write().await.remove(&self.id);
+        self.unadvertised = true;
+
+        Ok(())
+    }
+}
+
+impl Drop for Channel {
+    fn drop(&mut self) {
+        if self.unadvertised {
+            let channel_id = self.id;
+            let topic = self.topic.clone();
+            let clients = self.clients.clone();
+            let channels = self.channels.clone();
+            let pinned_message = self.pinned_message.clone();
+            tokio::spawn(async move {
+                if let Err(e) = Channel::unadvertise(Channel {
+                    id: channel_id,
+                    topic,
+                    is_latching: false,
+                    clients,
+                    channels,
+                    pinned_message,
+                    unadvertised: false,
+                })
+                .await
+                {
+                    log::error!("Failed to unadvertise channel: {}", e);
+                }
+            });
+        }
     }
 }
 
@@ -404,7 +461,9 @@ impl FoxgloveWebSocket {
             topic: topic.clone(),
             is_latching,
             clients: self.clients.clone(),
+            channels: self.channels.clone(),
             pinned_message: Arc::default(),
+            unadvertised: false,
         };
         let channel_message = ServerChannelMessage {
             id: channel_id,

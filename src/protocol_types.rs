@@ -28,6 +28,8 @@ pub(crate) enum ServerMessage {
     },
     #[serde(rename_all = "camelCase")]
     Advertise { channels: Vec<ServerChannelMessage> },
+    #[serde(rename_all = "camelCase")]
+    Unadvertise { channel_ids: Vec<usize> },
 }
 
 pub(crate) type ClientChannelId = u32;
