@@ -440,7 +440,7 @@ impl FoxgloveWebSocket {
     /// * `encoding` - Channel message encoding.
     /// * `schema_name` - Name of the schema.
     /// * `schema` - Schema describing the message format.
-    /// * `scheme_encoding` - Encoding of this channel's schema.
+    /// * `scheme_encoding` - Optional type of encoding used for schema encoding. May be used if the schema encoding can't be uniquely deduced from the message encoding.
     /// * `is_latching` - Whether messages sent of this channel are sticky. Each newly connecting
     ///    client will be message the last sticky message that was sent on this channel.
     pub async fn create_publisher<S: Into<SchemaDescriptor>>(
@@ -538,6 +538,8 @@ impl FoxgloveWebSocket {
     }
 }
 
+/// Wrapper around different types of schema descriptors.
+/// Binary descriptors will get base64 encoded.
 pub struct SchemaDescriptor(String);
 
 impl From<String> for SchemaDescriptor {
