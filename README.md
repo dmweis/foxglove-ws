@@ -8,7 +8,7 @@ Rust. It implements part of the Foxglove WebSocket protocol described in
 
 Call
 
-```
+```shell
 cargo run --release --example string
 ```
 
