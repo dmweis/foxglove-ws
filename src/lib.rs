@@ -144,11 +144,11 @@ impl MessageData {
         {
             let mut w = Cursor::new(&mut buffer);
             // Write op code for the "Message Data" type.
-            w.write(&(1 as u8).to_le_bytes())?;
+            w.write_all(&1_u8.to_le_bytes())?;
             // Write subscription ID for this client.
-            w.write(&subscription_id.to_le_bytes())?;
-            w.write(&self.timestamp_ns.to_le_bytes())?;
-            w.write(&self.data)?;
+            w.write_all(&subscription_id.to_le_bytes())?;
+            w.write_all(&self.timestamp_ns.to_le_bytes())?;
+            w.write_all(&self.data)?;
         }
         Ok(Message::binary(buffer))
     }
@@ -296,7 +296,7 @@ async fn handle_client_msg(
                     id
                 );
 
-                if let Some(ref channel_metadata) = channels.get(channel_id) {
+                if let Some(channel_metadata) = channels.get(channel_id) {
                     client.subscriptions.insert(*channel_id, *id);
                     if let Some(message_data) =
                         channel_metadata.pinned_message.read().await.as_ref()
