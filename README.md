@@ -2,7 +2,7 @@
 
 This library provides means to publish messages to the amazing Foxglove UI in
 Rust. It implements part of the Foxglove WebSocket protocol described in
-https://github.com/foxglove/ws-protocol.
+<https://github.com/foxglove/ws-protocol>.
 
 ## Example
 
