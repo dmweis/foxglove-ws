@@ -453,19 +453,20 @@ impl FoxgloveWebSocket {
         let parameters = warp::any().map(move || parameters.clone());
         let foxglove_ws = warp::path::end().and(
             warp::ws()
-                .and(warp::filters::header::value("sec-websocket-protocol"))
                 .and(clients)
                 .and(channels)
                 .and(parameters)
-                .map(|ws: warp::ws::Ws, proto, clients, channels, parameters| {
-                    let reply = ws.on_upgrade(move |socket| {
+                .map(|ws: warp::ws::Ws, clients, channels, parameters| {
+                    ws.on_upgrade(move |socket| {
                         client_connected(socket, clients, channels, parameters)
-                    });
-                    Ok(warp::reply::with_header(
+                    })
+                })
+                .map(|reply| {
+                    warp::reply::with_header(
                         reply,
-                        "sec-websocket-protocol",
-                        proto,
-                    ))
+                        "Sec-WebSocket-Protocol",
+                        "foxglove.websocket.v1",
+                    )
                 }),
         );
         warp::serve(foxglove_ws).run(addr).await;
