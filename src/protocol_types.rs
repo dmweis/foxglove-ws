@@ -31,6 +31,12 @@ pub(crate) enum ServerMessage {
     Advertise { channels: Vec<ServerChannelMessage> },
     #[serde(rename_all = "camelCase")]
     Unadvertise { channel_ids: Vec<usize> },
+    #[serde(rename_all = "camelCase")]
+    ParameterValues {
+        parameters: Vec<ParameterValue>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        id: Option<String>,
+    },
 }
 
 pub(crate) type ClientChannelId = u32;
@@ -53,4 +59,44 @@ pub(crate) enum ClientMessage {
     Unsubscribe {
         subscription_ids: Vec<ClientChannelId>,
     },
+    #[serde(rename_all = "camelCase")]
+    GetParameters {
+        parameter_names: Vec<String>,
+        #[allow(unused)]
+        id: String,
+    },
+    #[serde(rename_all = "camelCase")]
+    SetParameters {
+        parameters: HashMap<String, String>,
+        #[allow(unused)]
+        id: String,
+    },
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ParameterValue {
+    name: String,
+    value: String,
+    #[serde(rename = "field", skip_serializing_if = "Option::is_none")]
+    field_type: Option<String>,
+}
+
+impl ParameterValue {
+    pub(crate) fn new(name: &str, value: &str) -> Self {
+        Self {
+            name: name.to_owned(),
+            value: value.to_owned(),
+            field_type: None,
+        }
+    }
+
+    #[allow(unused)]
+    pub(crate) fn with_type(name: &str, value: &str, field_type: &str) -> Self {
+        Self {
+            name: name.to_owned(),
+            value: value.to_owned(),
+            field_type: Some(field_type.to_owned()),
+        }
+    }
 }

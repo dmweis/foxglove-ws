@@ -65,6 +65,7 @@ use std::{
 use anyhow::anyhow;
 use base64::{engine::general_purpose, Engine as _};
 use futures_util::{stream::SplitSink, SinkExt, StreamExt, TryFutureExt};
+use log::info;
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::wrappers::ReceiverStream;
 use uuid::Uuid;
@@ -233,18 +234,20 @@ struct ChannelState {
 pub struct FoxgloveWebSocket {
     clients: Arc<ClientState>,
     channels: Arc<ChannelState>,
+    pub parameters: Arc<RwLock<HashMap<String, String>>>,
 }
 
 async fn initialize_client(
     user_ws_tx: &mut SplitSink<WebSocket, Message>,
     channels: &Channels,
     client_id: &Uuid,
+    parameters: Arc<RwLock<HashMap<String, String>>>,
 ) -> anyhow::Result<()> {
     user_ws_tx
         .send(Message::text(
             serde_json::to_string(&ServerMessage::ServerInfo {
                 name: "test_server".to_string(),
-                capabilities: vec![],
+                capabilities: vec![String::from("parameters")],
                 supported_encodings: vec![],
                 metadata: HashMap::default(),
                 session_id: client_id.as_hyphenated().to_string(),
@@ -264,6 +267,23 @@ async fn initialize_client(
         .send(Message::text(
             serde_json::to_string(&ServerMessage::Advertise {
                 channels: channel_messages,
+            })
+            .unwrap(),
+        ))
+        .await?;
+
+    let parameters = parameters
+        .read()
+        .await
+        .iter()
+        .map(|(name, value)| ParameterValue::new(name, value))
+        .collect();
+
+    user_ws_tx
+        .send(Message::text(
+            serde_json::to_string(&ServerMessage::ParameterValues {
+                id: None,
+                parameters,
             })
             .unwrap(),
         ))
@@ -333,11 +353,28 @@ async fn handle_client_msg(
                 .subscriptions
                 .retain(|_, subscription_id| !subscription_ids.contains(subscription_id));
         }
+        ClientMessage::GetParameters {
+            parameter_names,
+            id: _,
+        } => {
+            info!(
+                "Client {} requested parameters: {:?}",
+                client_id, parameter_names
+            );
+        }
+        ClientMessage::SetParameters { parameters, id: _ } => {
+            info!("Client {} set parameters: {:?}", client_id, parameters);
+        }
     }
     Ok(())
 }
 
-async fn client_connected(ws: WebSocket, clients: Arc<ClientState>, channels: Arc<ChannelState>) {
+async fn client_connected(
+    ws: WebSocket,
+    clients: Arc<ClientState>,
+    channels: Arc<ChannelState>,
+    parameters: Arc<RwLock<HashMap<String, String>>>,
+) {
     // Split the socket into a sender and receive of messages.
     let (mut user_ws_tx, mut user_ws_rx) = ws.split();
 
@@ -345,7 +382,9 @@ async fn client_connected(ws: WebSocket, clients: Arc<ClientState>, channels: Ar
     log::info!("Client {} connected.", client_id);
 
     // Send server info.
-    if let Err(err) = initialize_client(&mut user_ws_tx, &channels.channels, &client_id).await {
+    if let Err(err) =
+        initialize_client(&mut user_ws_tx, &channels.channels, &client_id, parameters).await
+    {
         log::error!("Failed to initialize client: {}.", err);
         return;
     }
@@ -410,14 +449,18 @@ impl FoxgloveWebSocket {
         let clients = warp::any().map(move || clients.clone());
         let channels = self.channels.clone();
         let channels = warp::any().map(move || channels.clone());
+        let parameters = self.parameters.clone();
+        let parameters = warp::any().map(move || parameters.clone());
         let foxglove_ws = warp::path::end().and(
             warp::ws()
                 .and(warp::filters::header::value("sec-websocket-protocol"))
                 .and(clients)
                 .and(channels)
-                .map(|ws: warp::ws::Ws, proto, clients, channels| {
-                    let reply =
-                        ws.on_upgrade(move |socket| client_connected(socket, clients, channels));
+                .and(parameters)
+                .map(|ws: warp::ws::Ws, proto, clients, channels, parameters| {
+                    let reply = ws.on_upgrade(move |socket| {
+                        client_connected(socket, clients, channels, parameters)
+                    });
                     Ok(warp::reply::with_header(
                         reply,
                         "sec-websocket-protocol",
