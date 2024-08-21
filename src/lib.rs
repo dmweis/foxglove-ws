@@ -438,7 +438,7 @@ async fn client_connected(
         }
     }
 
-    log::debug!("Client {} closed.", client_id);
+    log::info!("Client {} closed.", client_id);
     clients.clients.write().await.remove(&client_id);
 }
 
