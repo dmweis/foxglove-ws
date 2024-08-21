@@ -12,7 +12,7 @@ fn build_string_message(data: &str) -> anyhow::Result<Vec<u8>> {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
-    let server = foxglove_ws::FoxgloveWebSocket::new();
+    let server = foxglove_ws::FoxgloveWebSocket::default();
 
     let urdf_robot = urdf_rs::Robot {
         name: "base".to_string(),

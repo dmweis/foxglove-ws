@@ -24,7 +24,7 @@
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
-//!     let server = foxglove_ws::FoxgloveWebSocket::new();
+//!     let server = foxglove_ws::FoxgloveWebSocket::default();
 //!     tokio::spawn({
 //!         let server = server.clone();
 //!         async move { server.serve(([127, 0, 0, 1], 8765)).await }
@@ -235,6 +235,7 @@ pub struct FoxgloveWebSocket {
     clients: Arc<ClientState>,
     channels: Arc<ChannelState>,
     pub parameters: Arc<RwLock<HashMap<String, String>>>,
+    server_name: String,
 }
 
 async fn initialize_client(
@@ -242,11 +243,12 @@ async fn initialize_client(
     channels: &Channels,
     client_id: &Uuid,
     parameters: Arc<RwLock<HashMap<String, String>>>,
+    server_name: &str,
 ) -> anyhow::Result<()> {
     user_ws_tx
         .send(Message::text(
             serde_json::to_string(&ServerMessage::ServerInfo {
-                name: "test_server".to_string(),
+                name: server_name.to_owned(),
                 capabilities: vec![String::from("parameters")],
                 supported_encodings: vec![],
                 metadata: HashMap::default(),
@@ -374,6 +376,7 @@ async fn client_connected(
     clients: Arc<ClientState>,
     channels: Arc<ChannelState>,
     parameters: Arc<RwLock<HashMap<String, String>>>,
+    server_name: String,
 ) {
     // Split the socket into a sender and receive of messages.
     let (mut user_ws_tx, mut user_ws_rx) = ws.split();
@@ -382,8 +385,14 @@ async fn client_connected(
     log::info!("Client {} connected.", client_id);
 
     // Send server info.
-    if let Err(err) =
-        initialize_client(&mut user_ws_tx, &channels.channels, &client_id, parameters).await
+    if let Err(err) = initialize_client(
+        &mut user_ws_tx,
+        &channels.channels,
+        &client_id,
+        parameters,
+        &server_name,
+    )
+    .await
     {
         log::error!("Failed to initialize client: {}.", err);
         return;
@@ -435,8 +444,12 @@ async fn client_connected(
 
 impl FoxgloveWebSocket {
     /// Creates a new Foxglove WebSocket service.
-    pub fn new() -> Self {
-        FoxgloveWebSocket::default()
+    pub fn new(server_name: &str) -> Self {
+        let server_name = server_name.to_owned();
+        Self {
+            server_name,
+            ..Default::default()
+        }
     }
 
     /// Serves connecting clients.
@@ -451,16 +464,21 @@ impl FoxgloveWebSocket {
         let channels = warp::any().map(move || channels.clone());
         let parameters = self.parameters.clone();
         let parameters = warp::any().map(move || parameters.clone());
+        let server_name = self.server_name.to_owned();
+        let server_name = warp::any().map(move || server_name.clone());
         let foxglove_ws = warp::path::end().and(
             warp::ws()
                 .and(clients)
                 .and(channels)
                 .and(parameters)
-                .map(|ws: warp::ws::Ws, clients, channels, parameters| {
-                    ws.on_upgrade(move |socket| {
-                        client_connected(socket, clients, channels, parameters)
-                    })
-                })
+                .and(server_name)
+                .map(
+                    |ws: warp::ws::Ws, clients, channels, parameters, server_name: String| {
+                        ws.on_upgrade(move |socket| {
+                            client_connected(socket, clients, channels, parameters, server_name)
+                        })
+                    },
+                )
                 .map(|reply| {
                     warp::reply::with_header(
                         reply,
