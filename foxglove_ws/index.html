@@ -1,0 +1,47 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="This library provides means to publish messages to the amazing Foxglove UI in Rust. It implements part of the Foxglove WebSocket protocol described in https://github.com/foxglove/ws-protocol."><title>foxglove_ws - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../static.files/rustdoc-dd39b87e5fcfba68.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="foxglove_ws" data-themes="" data-resource-suffix="" data-rustdoc-version="1.80.1 (3f5fd8dd4 2024-08-06)" data-channel="1.80.1" data-search-js="search-d52510db62a78183.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-20a3ad099b048cf2.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-df360f571f6edeae.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../foxglove_ws/index.html">foxglove_ws</a><span class="version">0.3.0</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section><ul class="block"><li><a href="#structs">Structs</a></li></ul></section></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1>Crate <a class="mod" href="#">foxglove_ws</a><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><span class="out-of-band"><a class="src" href="../src/foxglove_ws/lib.rs.html#1-631">source</a> · <button id="toggle-all-docs" title="collapse all docs">[<span>&#x2212;</span>]</button></span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>This library provides means to publish messages to the amazing Foxglove UI in Rust. It
+implements part of the Foxglove WebSocket protocol described in
+<a href="https://github.com/foxglove/ws-protocol">https://github.com/foxglove/ws-protocol</a>.</p>
+<p>On its own the protocol does not fix a specific data scheme for the messages. But for Foxglove
+to understand the messages it makes sense to follow the well-known serialization schemes
+<a href="https://mcap.dev/spec/registry">https://mcap.dev/spec/registry</a>.</p>
+<h2 id="example"><a class="doc-anchor" href="#example">§</a>Example</h2>
+<p>This is an example with single ROS1 channel/topic with the <code>std_msgs/String</code> message type.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>std::{io::Write, time::SystemTime};
+
+<span class="kw">fn </span>build_string_message(data: <span class="kw-2">&amp;</span>str) -&gt; anyhow::Result&lt;Vec&lt;u8&gt;&gt; {
+    <span class="kw">let </span><span class="kw-2">mut </span>msg = <span class="macro">vec!</span>[<span class="number">0</span>; std::mem::size_of::&lt;u32&gt;() + data.len()];
+    <span class="comment">// ROS 1 message strings are encoded as 4-bytes length and then the byte data.
+    </span><span class="kw">let </span><span class="kw-2">mut </span>w = std::io::Cursor::new(<span class="kw-2">&amp;mut </span>msg);
+    w.write(<span class="kw-2">&amp;</span>(data.len() <span class="kw">as </span>u32).to_le_bytes())<span class="question-mark">?</span>;
+    w.write(data.as_bytes())<span class="question-mark">?</span>;
+    <span class="prelude-val">Ok</span>(msg)
+}
+
+<span class="attr">#[tokio::main]
+</span><span class="kw">async fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
+    <span class="kw">let </span>server = foxglove_ws::FoxgloveWebSocket::default();
+    tokio::spawn({
+        <span class="kw">let </span>server = server.clone();
+        <span class="kw">async move </span>{ server.serve(([<span class="number">127</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>], <span class="number">8765</span>)).<span class="kw">await </span>}
+    });
+    <span class="kw">let </span>channel = server
+        .publish(
+            <span class="string">"/data"</span>.to_string(),
+            <span class="string">"ros1"</span>.to_string(),
+            <span class="string">"std_msgs/String"</span>.to_string(),
+            <span class="string">"string data"</span>.to_string(),
+            <span class="string">"ros1msg"</span>.to_string(),
+            <span class="bool-val">false</span>,
+        )
+        .<span class="kw">await</span><span class="question-mark">?</span>;
+    channel
+        .send(
+            SystemTime::now().elapsed().unwrap().as_nanos() <span class="kw">as </span>u64,
+            <span class="kw-2">&amp;</span>build_string_message(<span class="string">"Hello!"</span>)<span class="question-mark">?</span>,
+        )
+        .<span class="kw">await</span><span class="question-mark">?</span>;
+    <span class="prelude-val">Ok</span>(())
+}</code></pre></div>
+</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="struct" href="struct.Channel.html" title="struct foxglove_ws::Channel">Channel</a></div><div class="desc docblock-short">Represents a channel to send data with.</div></li><li><div class="item-name"><a class="struct" href="struct.FoxgloveWebSocket.html" title="struct foxglove_ws::FoxgloveWebSocket">FoxgloveWebSocket</a></div><div class="desc docblock-short">The service WebSocket. It tracks the connected clients and takes care of subscriptions.</div></li><li><div class="item-name"><a class="struct" href="struct.SchemaDescriptor.html" title="struct foxglove_ws::SchemaDescriptor">SchemaDescriptor</a></div><div class="desc docblock-short">Wrapper around different types of schema descriptors.
+Binary descriptors will get base64 encoded.</div></li></ul></section></div></main></body></html>

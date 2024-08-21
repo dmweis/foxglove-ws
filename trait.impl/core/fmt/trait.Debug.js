@@ -1,0 +1,3 @@
+(function() {var implementors = {
+"foxglove_ws":[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.80.1/core/fmt/trait.Debug.html\" title=\"trait core::fmt::Debug\">Debug</a> for <a class=\"struct\" href=\"foxglove_ws/struct.Channel.html\" title=\"struct foxglove_ws::Channel\">Channel</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.80.1/core/fmt/trait.Debug.html\" title=\"trait core::fmt::Debug\">Debug</a> for <a class=\"struct\" href=\"foxglove_ws/struct.FoxgloveWebSocket.html\" title=\"struct foxglove_ws::FoxgloveWebSocket\">FoxgloveWebSocket</a>"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

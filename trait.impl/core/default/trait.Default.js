@@ -1,0 +1,3 @@
+(function() {var implementors = {
+"foxglove_ws":[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.80.1/core/default/trait.Default.html\" title=\"trait core::default::Default\">Default</a> for <a class=\"struct\" href=\"foxglove_ws/struct.FoxgloveWebSocket.html\" title=\"struct foxglove_ws::FoxgloveWebSocket\">FoxgloveWebSocket</a>"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
