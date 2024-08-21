@@ -65,7 +65,7 @@ use std::{
 use anyhow::anyhow;
 use base64::{engine::general_purpose, Engine as _};
 use futures_util::{stream::SplitSink, SinkExt, StreamExt, TryFutureExt};
-use log::info;
+use log::debug;
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::wrappers::ReceiverStream;
 use uuid::Uuid;
@@ -357,13 +357,13 @@ async fn handle_client_msg(
             parameter_names,
             id: _,
         } => {
-            info!(
+            debug!(
                 "Client {} requested parameters: {:?}",
                 client_id, parameter_names
             );
         }
         ClientMessage::SetParameters { parameters, id: _ } => {
-            info!("Client {} set parameters: {:?}", client_id, parameters);
+            debug!("Client {} set parameters: {:?}", client_id, parameters);
         }
     }
     Ok(())
@@ -500,7 +500,7 @@ impl FoxgloveWebSocket {
             .channels
             .next_channel_id
             .fetch_add(1, Ordering::Relaxed);
-        log::info!("Publish new channel {}: {}.", topic, channel_id);
+        log::debug!("Publishing new channel {}: {}.", topic, channel_id);
         let channel = Channel {
             id: channel_id,
             topic: topic.to_owned(),
